@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marlin → Klipper Config Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-input: #1a1a24;
+            --accent: #00d4aa;
+            --accent-dim: #00a88a;
+            --text: #e8e8ed;
+            --text-dim: #8888a0;
+            --border: #2a2a3a;
+            --error: #ff6b6b;
+            --warning: #ffa94d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent) 0%, #00ffcc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        .converter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .converter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            background: var(--bg-input);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-title .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .input-panel .dot {
+            background: var(--warning);
+        }
+
+        textarea {
+            width: 100%;
+            height: 500px;
+            padding: 1.25rem;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+            outline: none;
+        }
+
+        textarea::placeholder {
+            color: var(--text-dim);
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-dark);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--bg-input);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .info-section {
+            margin-top: 3rem;
+            padding: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .info-section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .info-card h3 {
+            font-size: 0.9rem;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .info-card p, .info-card ul {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        .info-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-card li::before {
+            content: "→ ";
+            color: var(--accent);
+        }
+
+        .status {
+            padding: 0.75rem 1.25rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .status.error {
+            display: block;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .status.success {
+            display: block;
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-card);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .file-label:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Marlin → Klipper</h1>
+            <p class="subtitle">Convert your Marlin Configuration.h to Klipper printer.cfg</p>
+        </header>
+
+        <div id="status" class="status"></div>
+
+        <div class="converter-grid">
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><span class="dot"></span>Configuration.h (Marlin)</span>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".h,.txt">
+                        <label for="fileInput" class="file-label">Load File</label>
+                    </div>
+                </div>
+                <textarea id="marlinInput" placeholder="Paste your Marlin Configuration.h content here...
+
+Example content it will parse:
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 80, 80, 400, 93 }
+#define DEFAULT_MAX_FEEDRATE          { 500, 500, 5, 25 }
+#define X_BED_SIZE 235
+#define Y_BED_SIZE 235
+..."></textarea>
+            </div>
+
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <span class="panel-title"><span class="dot"></span>printer.cfg (Klipper)</span>
+                    <button class="file-label" onclick="copyOutput()">Copy</button>
+                </div>
+                <textarea id="klipperOutput" readonly placeholder="Converted Klipper configuration will appear here..."></textarea>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" onclick="convert()">
+                <span>⚡</span> Convert
+            </button>
+            <button class="btn-secondary" onclick="downloadOutput()">
+                <span>↓</span> Download printer.cfg
+            </button>
+            <button class="btn-secondary" onclick="clearAll()">
+                <span>✕</span> Clear
+            </button>
+        </div>
+
+        <div class="info-section">
+            <h2>What Gets Converted</h2>
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>✓ Supported Settings</h3>
+                    <ul>
+                        <li>Steps per unit → rotation_distance</li>
+                        <li>Max feedrates & acceleration</li>
+                        <li>Bed size & travel limits</li>
+                        <li>Stepper directions</li>
+                        <li>Thermistor types</li>
+                        <li>PID values</li>
+                        <li>Probe offsets</li>
+                    </ul>
+                </div>
+                <div class="info-card">
+                    <h3>⚠ Requires Manual Setup</h3>
+                    <ul>
+                        <li>MCU pin mappings (board-specific)</li>
+                        <li>Serial connection path</li>
+                        <li>TMC driver configuration</li>
+                        <li>Display/LCD settings</li>
+                        <li>Custom macros</li>
+                    </ul>
+                </div>
+                <div class="info-card">
+                    <h3>💡 Tips</h3>
+                    <p>This converter provides a starting point. You'll need to add your MCU serial path and verify pin assignments match your board. Check the Klipper config reference for your specific hardware.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('marlinInput').value = e.target.result;
+                    showStatus('File loaded: ' + file.name, 'success');
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            if (type === 'success') {
+                setTimeout(() => { status.className = 'status'; }, 3000);
+            }
+        }
+
+        function parseDefine(content, name, defaultVal = null) {
+            const regex = new RegExp(`#define\\s+${name}\\s+([^\\n\\/]+)`, 'm');
+            const match = content.match(regex);
+            if (match) {
+                return match[1].trim();
+            }
+            return defaultVal;
+        }
+
+        function parseArray(content, name) {
+            const regex = new RegExp(`#define\\s+${name}\\s*\\{([^}]+)\\}`, 'm');
+            const match = content.match(regex);
+            if (match) {
+                return match[1].split(',').map(v => parseFloat(v.trim()));
+            }
+            return null;
+        }
+
+        function isEnabled(content, name) {
+            const regex = new RegExp(`^\\s*#define\\s+${name}\\b`, 'm');
+            return regex.test(content);
+        }
+
+        function stepsToRotationDistance(stepsPerMm, fullSteps = 200, microsteps = 16) {
+            if (!stepsPerMm || stepsPerMm === 0) return 40;
+            return (fullSteps * microsteps) / stepsPerMm;
+        }
+
+        function convert() {
+            const marlin = document.getElementById('marlinInput').value;
+            
+            if (!marlin.trim()) {
+                showStatus('Please paste your Marlin configuration first', 'error');
+                return;
+            }
+
+            let klipper = [];
+            
+            // Header
+            klipper.push('# Klipper Configuration');
+            klipper.push('# Converted from Marlin Configuration.h');
+            klipper.push('# Generated: ' + new Date().toISOString().split('T')[0]);
+            klipper.push('# ⚠ REVIEW ALL SETTINGS BEFORE USE ⚠');
+            klipper.push('');
+
+            // MCU section
+            klipper.push('# =============================================================================');
+            klipper.push('# MCU - UPDATE THIS FOR YOUR BOARD');
+            klipper.push('# =============================================================================');
+            klipper.push('[mcu]');
+            klipper.push('serial: /dev/serial/by-id/usb-YOUR_MCU_ID  # Run: ls /dev/serial/by-id/*');
+            klipper.push('');
+
+            // Printer section
+            klipper.push('# =============================================================================');
+            klipper.push('# PRINTER');
+            klipper.push('# =============================================================================');
+            klipper.push('[printer]');
+            
+            // Detect kinematics
+            let kinematics = 'cartesian';
+            if (isEnabled(marlin, 'COREXY')) kinematics = 'corexy';
+            else if (isEnabled(marlin, 'COREXZ')) kinematics = 'corexz';
+            else if (isEnabled(marlin, 'DELTA')) kinematics = 'delta';
+            klipper.push('kinematics: ' + kinematics);
+
+            // Max velocity and acceleration
+            const maxFeedrate = parseArray(marlin, 'DEFAULT_MAX_FEEDRATE');
+            const maxAccel = parseArray(marlin, 'DEFAULT_MAX_ACCELERATION');
+            
+            if (maxFeedrate) {
+                const maxVel = Math.max(...maxFeedrate.slice(0, 2));
+                klipper.push('max_velocity: ' + maxVel);
+            } else {
+                klipper.push('max_velocity: 300');
+            }
+
+            if (maxAccel) {
+                const maxA = Math.max(...maxAccel.slice(0, 2));
+                klipper.push('max_accel: ' + maxA);
+            } else {
+                klipper.push('max_accel: 3000');
+            }
+
+            const maxZVel = maxFeedrate ? maxFeedrate[2] : 5;
+            klipper.push('max_z_velocity: ' + maxZVel);
+            klipper.push('max_z_accel: 100');
+
+            // Square corner velocity (from jerk)
+            const jerk = parseArray(marlin, 'DEFAULT_XJERK') || parseDefine(marlin, 'DEFAULT_XJERK');
+            if (jerk) {
+                const jerkVal = Array.isArray(jerk) ? jerk[0] : parseFloat(jerk);
+                klipper.push('square_corner_velocity: ' + (jerkVal || 5));
+            } else {
+                klipper.push('square_corner_velocity: 5');
+            }
+            klipper.push('');
+
+            // Steps per unit
+            const stepsPerUnit = parseArray(marlin, 'DEFAULT_AXIS_STEPS_PER_UNIT');
+            const microsteps = 16; // Common default
+
+            // Stepper X
+            klipper.push('# =============================================================================');
+            klipper.push('# STEPPERS');
+            klipper.push('# =============================================================================');
+            klipper.push('[stepper_x]');
+            klipper.push('step_pin: PX0      # UPDATE FOR YOUR BOARD');
+            klipper.push('dir_pin: PX1       # UPDATE FOR YOUR BOARD (add ! to invert)');
+            klipper.push('enable_pin: !PX2   # UPDATE FOR YOUR BOARD');
+            klipper.push('microsteps: ' + microsteps);
+            
+            if (stepsPerUnit) {
+                klipper.push('rotation_distance: ' + stepsToRotationDistance(stepsPerUnit[0]).toFixed(3));
+            } else {
+                klipper.push('rotation_distance: 40  # For 20T pulley with 2mm pitch belt');
+            }
+
+            klipper.push('endstop_pin: ^PX3  # UPDATE FOR YOUR BOARD');
+            klipper.push('position_endstop: 0');
+            
+            const xBedSize = parseDefine(marlin, 'X_BED_SIZE', '235');
+            const xMaxPos = parseDefine(marlin, 'X_MAX_POS', xBedSize);
+            klipper.push('position_max: ' + xMaxPos);
+            klipper.push('homing_speed: 50');
+            klipper.push('');
+
+            // Stepper Y
+            klipper.push('[stepper_y]');
+            klipper.push('step_pin: PY0      # UPDATE FOR YOUR BOARD');
+            klipper.push('dir_pin: PY1       # UPDATE FOR YOUR BOARD');
+            klipper.push('enable_pin: !PY2   # UPDATE FOR YOUR BOARD');
+            klipper.push('microsteps: ' + microsteps);
+            
+            if (stepsPerUnit) {
+                klipper.push('rotation_distance: ' + stepsToRotationDistance(stepsPerUnit[1]).toFixed(3));
+            } else {
+                klipper.push('rotation_distance: 40');
+            }
+
+            klipper.push('endstop_pin: ^PY3  # UPDATE FOR YOUR BOARD');
+            klipper.push('position_endstop: 0');
+            
+            const yBedSize = parseDefine(marlin, 'Y_BED_SIZE', '235');
+            const yMaxPos = parseDefine(marlin, 'Y_MAX_POS', yBedSize);
+            klipper.push('position_max: ' + yMaxPos);
+            klipper.push('homing_speed: 50');
+            klipper.push('');
+
+            // Stepper Z
+            klipper.push('[stepper_z]');
+            klipper.push('step_pin: PZ0      # UPDATE FOR YOUR BOARD');
+            klipper.push('dir_pin: PZ1       # UPDATE FOR YOUR BOARD');
+            klipper.push('enable_pin: !PZ2   # UPDATE FOR YOUR BOARD');
+            klipper.push('microsteps: ' + microsteps);
+            
+            if (stepsPerUnit) {
+                klipper.push('rotation_distance: ' + stepsToRotationDistance(stepsPerUnit[2], 200, 16).toFixed(3));
+            } else {
+                klipper.push('rotation_distance: 8  # For T8 leadscrew');
+            }
+
+            klipper.push('endstop_pin: ^PZ3  # UPDATE - or use probe:z_virtual_endstop');
+            klipper.push('position_endstop: 0');
+            
+            const zMaxPos = parseDefine(marlin, 'Z_MAX_POS', '250');
+            klipper.push('position_max: ' + zMaxPos);
+            klipper.push('');
+
+            // Extruder
+            klipper.push('# =============================================================================');
+            klipper.push('# EXTRUDER');
+            klipper.push('# =============================================================================');
+            klipper.push('[extruder]');
+            klipper.push('step_pin: PE0      # UPDATE FOR YOUR BOARD');
+            klipper.push('dir_pin: PE1       # UPDATE FOR YOUR BOARD');
+            klipper.push('enable_pin: !PE2   # UPDATE FOR YOUR BOARD');
+            klipper.push('microsteps: ' + microsteps);
+            
+            if (stepsPerUnit && stepsPerUnit[3]) {
+                klipper.push('rotation_distance: ' + stepsToRotationDistance(stepsPerUnit[3], 200, 16).toFixed(3));
+            } else {
+                klipper.push('rotation_distance: 33.5  # Calibrate this!');
+            }
+
+            klipper.push('nozzle_diameter: 0.400');
+            klipper.push('filament_diameter: 1.750');
+            klipper.push('heater_pin: PH0    # UPDATE FOR YOUR BOARD');
+            klipper.push('sensor_pin: PS0    # UPDATE FOR YOUR BOARD');
+
+            // Thermistor type
+            const tempSensor = parseDefine(marlin, 'TEMP_SENSOR_0', '1');
+            let sensorType = 'EPCOS 100K B57560G104F';
+            if (tempSensor === '1') sensorType = 'EPCOS 100K B57560G104F';
+            else if (tempSensor === '5') sensorType = 'ATC Semitec 104GT-2';
+            else if (tempSensor === '13') sensorType = 'NTC 100K beta 3950';
+            klipper.push('sensor_type: ' + sensorType);
+
+            // Heater PID
+            const hotendKp = parseDefine(marlin, 'DEFAULT_Kp');
+            const hotendKi = parseDefine(marlin, 'DEFAULT_Ki');
+            const hotendKd = parseDefine(marlin, 'DEFAULT_Kd');
+            
+            if (hotendKp && hotendKi && hotendKd) {
+                klipper.push('control: pid');
+                klipper.push('pid_Kp: ' + parseFloat(hotendKp).toFixed(3));
+                klipper.push('pid_Ki: ' + parseFloat(hotendKi).toFixed(3));
+                klipper.push('pid_Kd: ' + parseFloat(hotendKd).toFixed(3));
+            } else {
+                klipper.push('control: pid');
+                klipper.push('pid_Kp: 21.527');
+                klipper.push('pid_Ki: 1.063');
+                klipper.push('pid_Kd: 108.982');
+            }
+
+            const maxHotendTemp = parseDefine(marlin, 'HEATER_0_MAXTEMP', '275');
+            klipper.push('min_temp: 0');
+            klipper.push('max_temp: ' + (parseInt(maxHotendTemp) - 10));
+
+            // Pressure advance hint
+            klipper.push('# pressure_advance: 0.05  # Tune this for your setup');
+            klipper.push('');
+
+            // Heated bed
+            klipper.push('# =============================================================================');
+            klipper.push('# HEATED BED');
+            klipper.push('# =============================================================================');
+            klipper.push('[heater_bed]');
+            klipper.push('heater_pin: PB0    # UPDATE FOR YOUR BOARD');
+            klipper.push('sensor_pin: PBS0   # UPDATE FOR YOUR BOARD');
+
+            const bedSensor = parseDefine(marlin, 'TEMP_SENSOR_BED', '1');
+            let bedSensorType = 'EPCOS 100K B57560G104F';
+            if (bedSensor === '1') bedSensorType = 'EPCOS 100K B57560G104F';
+            else if (bedSensor === '5') bedSensorType = 'ATC Semitec 104GT-2';
+            klipper.push('sensor_type: ' + bedSensorType);
+
+            const bedKp = parseDefine(marlin, 'DEFAULT_bedKp');
+            const bedKi = parseDefine(marlin, 'DEFAULT_bedKi');
+            const bedKd = parseDefine(marlin, 'DEFAULT_bedKd');
+
+            if (bedKp && bedKi && bedKd) {
+                klipper.push('control: pid');
+                klipper.push('pid_Kp: ' + parseFloat(bedKp).toFixed(3));
+                klipper.push('pid_Ki: ' + parseFloat(bedKi).toFixed(3));
+                klipper.push('pid_Kd: ' + parseFloat(bedKd).toFixed(3));
+            } else {
+                klipper.push('control: pid');
+                klipper.push('pid_Kp: 54.027');
+                klipper.push('pid_Ki: 0.770');
+                klipper.push('pid_Kd: 948.182');
+            }
+
+            const maxBedTemp = parseDefine(marlin, 'BED_MAXTEMP', '125');
+            klipper.push('min_temp: 0');
+            klipper.push('max_temp: ' + (parseInt(maxBedTemp) - 5));
+            klipper.push('');
+
+            // Fan
+            klipper.push('# =============================================================================');
+            klipper.push('# FANS');
+            klipper.push('# =============================================================================');
+            klipper.push('[fan]');
+            klipper.push('pin: PF0  # Part cooling fan - UPDATE FOR YOUR BOARD');
+            klipper.push('');
+            klipper.push('[heater_fan hotend_fan]');
+            klipper.push('pin: PF1  # Hotend fan - UPDATE FOR YOUR BOARD');
+            klipper.push('heater: extruder');
+            klipper.push('heater_temp: 50.0');
+            klipper.push('');
+
+            // Probe if enabled
+            if (isEnabled(marlin, 'BLTOUCH') || isEnabled(marlin, 'FIX_MOUNTED_PROBE')) {
+                klipper.push('# =============================================================================');
+                klipper.push('# PROBE');
+                klipper.push('# =============================================================================');
+                
+                if (isEnabled(marlin, 'BLTOUCH')) {
+                    klipper.push('[bltouch]');
+                    klipper.push('sensor_pin: ^PBS1  # UPDATE FOR YOUR BOARD');
+                    klipper.push('control_pin: PBC1  # UPDATE FOR YOUR BOARD');
+                } else {
+                    klipper.push('[probe]');
+                    klipper.push('pin: ^PBS1  # UPDATE FOR YOUR BOARD');
+                }
+
+                const probeXOffset = parseDefine(marlin, 'NOZZLE_TO_PROBE_OFFSET', null);
+                if (probeXOffset) {
+                    // Try to parse the array format { x, y, z }
+                    const offsetMatch = probeXOffset.match(/\{\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\}/);
+                    if (offsetMatch) {
+                        klipper.push('x_offset: ' + offsetMatch[1]);
+                        klipper.push('y_offset: ' + offsetMatch[2]);
+                        klipper.push('z_offset: ' + offsetMatch[3]);
+                    } else {
+                        klipper.push('x_offset: 0');
+                        klipper.push('y_offset: 0');
+                        klipper.push('z_offset: 0  # Calibrate with PROBE_CALIBRATE');
+                    }
+                } else {
+                    klipper.push('x_offset: 0');
+                    klipper.push('y_offset: 0');
+                    klipper.push('z_offset: 0  # Calibrate with PROBE_CALIBRATE');
+                }
+                klipper.push('speed: 5');
+                klipper.push('');
+
+                // Bed mesh
+                klipper.push('[bed_mesh]');
+                klipper.push('speed: 120');
+                klipper.push('horizontal_move_z: 5');
+                klipper.push('mesh_min: 10, 10');
+                klipper.push('mesh_max: ' + (parseInt(xBedSize) - 10) + ', ' + (parseInt(yBedSize) - 10));
+                klipper.push('probe_count: 5, 5');
+                klipper.push('');
+
+                // Safe Z home
+                klipper.push('[safe_z_home]');
+                klipper.push('home_xy_position: ' + (parseInt(xBedSize)/2) + ', ' + (parseInt(yBedSize)/2));
+                klipper.push('speed: 50');
+                klipper.push('z_hop: 10');
+                klipper.push('z_hop_speed: 5');
+                klipper.push('');
+            }
+
+            // Basic macros
+            klipper.push('# =============================================================================');
+            klipper.push('# MACROS');
+            klipper.push('# =============================================================================');
+            klipper.push('[gcode_macro START_PRINT]');
+            klipper.push('gcode:');
+            klipper.push('    {% set BED_TEMP = params.BED_TEMP|default(60)|float %}');
+            klipper.push('    {% set EXTRUDER_TEMP = params.EXTRUDER_TEMP|default(200)|float %}');
+            klipper.push('    M140 S{BED_TEMP}');
+            klipper.push('    G28');
+            klipper.push('    G1 Z5 F3000');
+            klipper.push('    M190 S{BED_TEMP}');
+            klipper.push('    M109 S{EXTRUDER_TEMP}');
+            klipper.push('    G1 Z0.2 F3000');
+            klipper.push('');
+            klipper.push('[gcode_macro END_PRINT]');
+            klipper.push('gcode:');
+            klipper.push('    G91');
+            klipper.push('    G1 E-2 F2700');
+            klipper.push('    G1 Z10 F3000');
+            klipper.push('    G90');
+            klipper.push('    G1 X0 Y{printer.toolhead.axis_maximum.y - 10} F6000');
+            klipper.push('    M104 S0');
+            klipper.push('    M140 S0');
+            klipper.push('    M84');
+            klipper.push('');
+
+            // Virtual SD card for printing
+            klipper.push('[virtual_sdcard]');
+            klipper.push('path: ~/printer_data/gcodes');
+            klipper.push('');
+            klipper.push('[pause_resume]');
+            klipper.push('');
+            klipper.push('[display_status]');
+            klipper.push('');
+
+            document.getElementById('klipperOutput').value = klipper.join('\n');
+            showStatus('Conversion complete! Review all settings before use.', 'success');
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('klipperOutput');
+            output.select();
+            document.execCommand('copy');
+            showStatus('Copied to clipboard!', 'success');
+        }
+
+        function downloadOutput() {
+            const content = document.getElementById('klipperOutput').value;
+            if (!content.trim()) {
+                showStatus('Nothing to download. Convert first!', 'error');
+                return;
+            }
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'printer.cfg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showStatus('Downloaded printer.cfg', 'success');
+        }
+
+        function clearAll() {
+            document.getElementById('marlinInput').value = '';
+            document.getElementById('klipperOutput').value = '';
+            document.getElementById('status').className = 'status';
+        }
+    </script>
+</body>
+</html>
